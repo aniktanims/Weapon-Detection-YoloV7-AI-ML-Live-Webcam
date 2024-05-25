@@ -1,0 +1,151 @@
+<!-- object_detection_app/templates/object_detection_app/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weapon Detection</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        /* Style for chat-style message */
+        .chat-messages {
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        .chat-message {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-8">
+                <h1 class="mt-3 mb-4">SafetyCam - CSE499B</h1>
+                <div class="embed-responsive embed-responsive-16by9">
+                    <img id="video-feed" class="embed-responsive-item" src="" alt="Live Video Feed" style="display: none;" />
+                </div>
+                <div class="mt-3">
+                    <button id="start-detection-btn" type="button" class="btn btn-primary">Start Detection</button>
+                    <button id="stop-detection-btn" type="button" class="btn btn-danger ml-2" disabled>Stop Detection</button>
+                    <button id="toggle-webcam-btn" type="button" class="btn btn-secondary ml-2">Turn On Webcam</button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h2 class="mt-3 mb-4">Status Log</h2>
+                <!-- Chat-style messages for detection status
+                <!-- Chat-style messages for detection status -->
+                <div id="detection-status" class="chat-messages"></div>
+                <!-- Controls for Ultra Sonic Sensor Mode, Transmitter Mode, Automatic Buzzer, and Snapshot -->
+                <div class="mt-4">
+                    <h3>Controls</h3>
+                    <button id="ultra-sonic-btn" type="button" class="btn btn-primary">Ultra Sonic Sensor Mode</button>
+                    <button id="transmitter-btn" type="button" class="btn btn-primary ml-2">Transmitter Mode</button>
+                    <button id="buzzer-btn" type="button" class="btn btn-warning mt-2">Automatic Buzzer</button>
+                    <button id="snapshot-btn" type="button" class="btn btn-info mt-2">Snapshot</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS (optional) -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <!-- Beep Sound -->
+    <audio id="beep-sound" src="beep.mp3" preload="auto"></audio>
+    <script>
+        let isDetectionRunning = false;
+        let isWebcamOn = false;
+
+        // Function to play beep sound
+        function playBeep() {
+            const beepSound = document.getElementById("beep-sound");
+            beepSound.play();
+        }
+
+        // Function to update weapon detection status
+        function updateDetectionStatus() {
+            fetch("{% url 'weapon_detection_status' %}")
+            .then(response => response.json())
+            .then(data => {
+                const statusDiv = document.getElementById("detection-status");
+                if (data.status === "Weapon detected") {
+                    // Append the detection log as a new chat-style message
+                    statusDiv.innerHTML += `
+                        <div class="chat-message">
+                            <strong>Weapon detected</strong><br>
+                            Detected at: ${new Date(data.timestamp * 1000).toLocaleString()}<br>
+                            <img src="data:image/jpeg;base64,${data.screenshot}" alt="Weapon Screenshot" style="max-width: 100%; height: auto;">
+                        </div>`;
+                    // Play beep sound and add blink-red class to body
+                    playBeep();
+                    document.body.classList.add("blink-red");
+                } else {
+                    // Remove blink-red class from body
+                    document.body.classList.remove("blink-red");
+                }
+
+                // Scroll to bottom of chat messages
+                statusDiv.scrollTop = statusDiv.scrollHeight;
+            })
+            .catch(error => console.error("Error updating detection status:", error));
+        }
+
+        // Function to start weapon detection
+        function startDetection() {
+            if (!isDetectionRunning) {
+                isDetectionRunning = true;
+                document.getElementById("start-detection-btn").disabled = true;
+                document.getElementById("stop-detection-btn").disabled = false;
+                // Call updateDetectionStatus function to start updating detection status
+                updateDetectionStatus();
+                // Interval to update detection status every 5 seconds
+                setInterval(updateDetectionStatus, 5000);
+            }
+        }
+
+        // Function to stop weapon detection
+        function stopDetection() {
+            if (isDetectionRunning) {
+                isDetectionRunning = false;
+                document.getElementById("start-detection-btn").disabled = false;
+                document.getElementById("stop-detection-btn").disabled = true;
+                // Clear interval for updating detection status
+                clearInterval(updateDetectionStatus);
+            }
+        }
+
+        // Function to toggle webcam on/off
+        function toggleWebcam() {
+            const videoFeed = document.getElementById("video-feed");
+            if (!isWebcamOn) {
+                isWebcamOn = true;
+                videoFeed.src = "{% url 'webcam_feed' %}";
+                videoFeed.style.display = "block";
+                document.getElementById("toggle-webcam-btn").textContent = "Turn Off Webcam";
+            } else {
+                isWebcamOn = false;
+                videoFeed.src = "";
+                videoFeed.style.display = "none";
+                document.getElementById("toggle-webcam-btn").textContent = "Turn On Webcam";
+            }
+        }
+
+        // Event listeners for buttons
+        document.getElementById("start-detection-btn").addEventListener("click", startDetection);
+        document.getElementById("stop-detection-btn").addEventListener("click", stopDetection);
+        document.getElementById("toggle-webcam-btn").addEventListener("click", toggleWebcam);
+    </script>
+    <footer class="text-muted mt-5">
+        <div class="container">
+            <p class="float-right">
+                Developed by NSU 499B Team
+            </p>
+        </div>
+    </footer>
+</body>
+</html>
